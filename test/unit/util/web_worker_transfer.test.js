@@ -5,11 +5,15 @@
 const test = require('mapbox-gl-js-test').test;
 const {register, serialize, deserialize} = require('../../../src/util/web_worker_transfer');
 
+/*::
+import type {Serialized} from '../../../src/util/web_worker_transfer';
+*/
+
 test('round trip', (t) => {
     class Foo {
-        n/*: number*/;
-        buffer/*: ArrayBuffer*/;
-        _cached/*: ?number*/;
+        /*:: n: number;*/
+        /*:: buffer: ArrayBuffer;*/
+        /*:: _cached: ?number;*/
 
         constructor(n) {
             this.n = n;
@@ -43,3 +47,38 @@ test('round trip', (t) => {
     t.assert(bar.squared() === 100);
     t.end();
 });
+
+test('custom serialization', (t) => {
+    class Bar {
+        /*:: id: string; */
+        /*:: _deserialized: boolean; */
+        constructor(id) {
+            this.id = id;
+            this._deserialized = false;
+        }
+
+        static serialize(b/*: Bar*/)/*: Serialized*/ {
+            return `custom serialization,${b.id}`;
+        }
+
+        static deserialize(input/*: Serialized*/)/*: Bar*/ {
+            const b = new Bar((input/*: any*/).split(',')[1]);
+            b._deserialized = true;
+            return b;
+        }
+    }
+
+    register(Bar);
+
+    const bar = new Bar('a');
+    t.assert(!bar._deserialized);
+
+    const deserialized = deserialize(serialize(bar));
+    t.assert(deserialized instanceof Bar);
+    const bar2/*: Bar*/ = (deserialized/*: any*/);
+    t.equal(bar2.id, bar.id);
+    t.assert(bar2._deserialized);
+    t.end();
+});
+
+

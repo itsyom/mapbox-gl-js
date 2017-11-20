@@ -1,23 +1,7 @@
 // @flow
 
 const assert = require('assert');
-const registry: {[string]: { klass: Class<any>, omit: Array<string> }} = {};
-
-/**
- * Register the given class as serializable.
- *
- * To mark certain properties as non-serializable (such as cached/computed
- * properties), include an optional { omit: [] } argument.
- *
- * @private
- */
-function register<T: any>(klass: Class<T>, options: { omit: Array<$Keys<T>> } = { omit: [] }) {
-    assert(klass.name);
-    assert(!registry[klass.name]);
-    registry[klass.name] = { klass, omit: options.omit };
-}
-
-register(Object);
+const Color = require('../style-spec/util/color');
 
 export type Serialized =
     | null
@@ -35,6 +19,40 @@ export type Serialized =
     | Array<Serialized>
     | {| name: string, properties: {+[string]: Serialized} |};
 
+
+type Registry = {
+    [string]: {
+        klass: Class<any>,
+        omit: Array<string>
+    }
+};
+
+type RegisterOptions<T> = {
+    omit?: Array<$Keys<T>>
+}
+
+const registry: Registry = {};
+
+/**
+ * Register the given class as serializable.
+ *
+ * To mark certain properties as non-serializable (such as cached/computed
+ * properties), include an optional { omit: [] } argument.
+ *
+ * @private
+ */
+function register<T: any>(klass: Class<T>, options: RegisterOptions<T> = {}) {
+    const name: string = klass.name;
+    assert(name);
+    assert(!registry[name], `${name} is already registered.`);
+    registry[name] = {
+        klass,
+        omit: (options.omit: any) || []
+    };
+}
+
+register(Object);
+register(Color);
 /**
  * Serialize the given object for transfer to or from a web worker.
  *
@@ -81,7 +99,8 @@ function serialize(input: mixed, transferables?: Array<Transferable>): Serialize
     }
 
     if (typeof input === 'object') {
-        const name = input.constructor.name;
+        const klass = (input.constructor: any);
+        const name = klass.name;
         if (!name) {
             throw new Error(`can't serialize object of anonymous class`);
         }
@@ -90,13 +109,22 @@ function serialize(input: mixed, transferables?: Array<Transferable>): Serialize
             throw new Error(`can't serialize unregistered class ${name}`);
         }
 
-        const {omit} = registry[name];
-
         const properties: {[string]: Serialized} = {};
 
-        for (const key of Object.keys(input)) {
-            if (omit.indexOf(key) >= 0) continue;
-            properties[key] = serialize(input[key], transferables);
+        if (klass.serialize) {
+            // (Temporary workaround) allow a class to provide static
+            // `serialize()` and `deserialize()` methods to bypass the generic
+            // approach.
+            // This temporary workaround lets us use the generic serialization
+            // approach for objects whose members include instances of dynamic
+            // StructArray types. Once we refactor StructArray to be static,
+            // we can remove this complexity.
+            properties._serialized = (klass.serialize: typeof serialize)(input, transferables);
+        } else {
+            for (const key of Object.keys(input)) {
+                if (registry[name].omit.indexOf(key) >= 0) continue;
+                properties[key] = serialize(input[key], transferables);
+            }
         }
 
         return {name, properties};
@@ -134,6 +162,10 @@ function deserialize(input: Serialized): mixed {
         const {klass} = registry[name];
         if (!klass) {
             throw new Error(`can't deserialize unregistered class ${name}`);
+        }
+
+        if (klass.deserialize) {
+            return (klass.deserialize: typeof deserialize)(properties._serialized);
         }
 
         const result = Object.create(klass.prototype);
