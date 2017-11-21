@@ -1,7 +1,18 @@
 // @flow
 
 const assert = require('assert');
+
 const Color = require('../style-spec/util/color');
+
+const {
+    StyleExpression,
+    StyleExpressionWithErrorHandling,
+    ZoomDependentExpression,
+    ZoomConstantExpression
+} = require('../style-spec/expression');
+
+const {CompoundExpression} = require('../style-spec/expression/compound_expression');
+const expressions = require('../style-spec/expression/definitions');
 
 export type Serialized =
     | null
@@ -53,6 +64,18 @@ function register<T: any>(klass: Class<T>, options: RegisterOptions<T> = {}) {
 
 register(Object);
 register(Color);
+
+register(StyleExpression);
+register(StyleExpressionWithErrorHandling);
+register(ZoomDependentExpression);
+register(ZoomConstantExpression);
+register(CompoundExpression, {omit: ['_evaluate']});
+for (const name in expressions) {
+    const Expression = expressions[name];
+    if (registry[Expression.name]) continue;
+    register(expressions[name]);
+}
+
 /**
  * Serialize the given object for transfer to or from a web worker.
  *
