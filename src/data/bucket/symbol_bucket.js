@@ -20,7 +20,7 @@ const {getSizeData} = require('../../symbol/symbol_size');
 
 import type {Feature as ExpressionFeature} from '../../style-spec/expression';
 import type {Bucket, IndexedFeature, PopulateParameters} from '../bucket';
-import type {ProgramInterface, SerializedProgramConfiguration} from '../program_configuration';
+import type {ProgramInterface} from '../program_configuration';
 import type CollisionBoxArray, {CollisionBox} from '../../symbol/collision_box';
 import type {
     StructArray,
@@ -30,6 +30,7 @@ import type SymbolStyleLayer from '../../style/style_layer/symbol_style_layer';
 import type {SymbolQuad} from '../../symbol/quads';
 import type {SizeData} from '../../symbol/symbol_size';
 import type {PossiblyEvaluatedPropertyValue} from '../../style/properties';
+import type {Serialized} from '../../util/web_worker_transfer';
 
 export type SingleCollisionBox = {
     x1: number;
@@ -216,7 +217,7 @@ type SerializedSymbolBuffer = {
     indexArray: SerializedStructArray,
     opacityVertexArray: SerializedStructArray,
     collisionVertexArray: SerializedStructArray,
-    programConfigurations: {[string]: ?SerializedProgramConfiguration},
+    programConfigurations: Serialized,
     segments: Array<Object>,
 };
 
