@@ -9,8 +9,14 @@ const {TriangleIndexArray} = require('../index_array_type');
 const loadGeometry = require('../load_geometry');
 const EXTENT = require('../extent');
 const vectorTileFeatureTypes = require('@mapbox/vector-tile').VectorTileFeature.types;
+const {register} = require('../../util/web_worker_transfer');
 
-import type {Bucket, IndexedFeature, PopulateParameters, SerializedBucket} from '../bucket';
+import type {
+    Bucket,
+    BucketParameters,
+    IndexedFeature,
+    PopulateParameters
+} from '../bucket';
 import type {ProgramInterface} from '../program_configuration';
 import type LineStyleLayer from '../../style/style_layer/line_style_layer';
 import type Point from '@mapbox/point-geometry';
@@ -104,6 +110,7 @@ class LineBucket implements Bucket {
     zoom: number;
     overscaling: number;
     layers: Array<LineStyleLayer>;
+    layerIds: Array<string>;
 
     layoutVertexArray: StructArray;
     layoutVertexBuffer: VertexBuffer;
@@ -115,16 +122,17 @@ class LineBucket implements Bucket {
     segments: SegmentVector;
     uploaded: boolean;
 
-    constructor(options: any) {
+    constructor(options: BucketParameters) {
         this.zoom = options.zoom;
         this.overscaling = options.overscaling;
-        this.layers = options.layers;
+        this.layers = (options.layers: any);
+        this.layerIds = this.layers.map(layer => layer.id);
         this.index = options.index;
 
-        this.layoutVertexArray = new LayoutVertexArrayType(options.layoutVertexArray);
-        this.indexArray = new TriangleIndexArray(options.indexArray);
-        this.programConfigurations = new ProgramConfigurationSet(lineInterface, options.layers, options.zoom, options.programConfigurations);
-        this.segments = new SegmentVector(options.segments);
+        this.layoutVertexArray = new LayoutVertexArrayType();
+        this.indexArray = new TriangleIndexArray();
+        this.programConfigurations = new ProgramConfigurationSet(lineInterface, options.layers, options.zoom);
+        this.segments = new SegmentVector();
     }
 
     populate(features: Array<IndexedFeature>, options: PopulateParameters) {
@@ -139,17 +147,6 @@ class LineBucket implements Bucket {
 
     isEmpty() {
         return this.layoutVertexArray.length === 0;
-    }
-
-    serialize(transferables?: Array<Transferable>): SerializedBucket {
-        return {
-            zoom: this.zoom,
-            layerIds: this.layers.map((l) => l.id),
-            layoutVertexArray: this.layoutVertexArray.serialize(transferables),
-            indexArray: this.indexArray.serialize(transferables),
-            programConfigurations: this.programConfigurations.serialize(transferables),
-            segments: this.segments.get(),
-        };
     }
 
     upload(gl: WebGLRenderingContext) {
@@ -530,6 +527,8 @@ class LineBucket implements Bucket {
         }
     }
 }
+
+register(LineBucket, {omit: ['layers']});
 
 LineBucket.programInterface = lineInterface;
 

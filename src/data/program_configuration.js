@@ -15,7 +15,7 @@ import type {Feature, SourceExpression, CompositeExpression} from '../style-spec
 import type Color from '../style-spec/util/color';
 import type {PossiblyEvaluated, PossiblyEvaluatedPropertyValue} from '../style/properties';
 
-type LayoutAttribute = {
+export type LayoutAttribute = {
     name: string,
     type: ViewType,
     components?: number
